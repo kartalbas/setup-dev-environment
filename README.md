@@ -117,15 +117,15 @@ Automated development environment setup scripts for Windows, Ubuntu/Debian, and 
 2. Edit `setup-dev-environment-ubuntu.config`
 3. Make scripts executable:
    ```bash
-   chmod +x setup-dev-environment.sh
+   chmod +x setup-dev-environment-ubuntu.sh
    ```
 4. Run for user-level tools:
    ```bash
-   ./setup-dev-environment.sh --user
+   ./setup-dev-environment-ubuntu.sh --user
    ```
 5. Optionally, run with sudo for system packages:
    ```bash
-   sudo ./setup-dev-environment.sh --admin
+   sudo ./setup-dev-environment-ubuntu.sh --admin
    ```
 
 ### macOS
@@ -190,7 +190,7 @@ Install only specific tools, ignoring the config file:
 
 **Ubuntu:**
 ```bash
-./setup-dev-environment.sh --user --force-install git,curl,docker
+./setup-dev-environment-ubuntu.sh --user --force-install git,curl,docker
 ```
 
 **macOS:**
@@ -205,9 +205,14 @@ Install only specific tools, ignoring the config file:
 .\setup-dev-environment.ps1 -ToolsUserRights -ConfigFile "path\to\custom.config"
 ```
 
-**Ubuntu/macOS:**
+**Ubuntu:**
 ```bash
-./setup-dev-environment.sh --user --config /path/to/custom.config
+./setup-dev-environment-ubuntu.sh --user --config /path/to/custom.config
+```
+
+**macOS:**
+```bash
+./setup-dev-environment-macos.sh --user --config /path/to/custom.config
 ```
 
 ## 🎨 Screenshots
