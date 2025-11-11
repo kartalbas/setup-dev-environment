@@ -104,11 +104,11 @@ Automated development environment setup scripts for Windows, Ubuntu/Debian, and 
 2. Edit `setup-dev-environment-windows.config`
 3. Run PowerShell as **regular user** (NOT admin):
    ```powershell
-   .\setup-dev-environment.ps1 -ToolsUserRights
+   .\setup-dev-environment-windows.ps1 -ToolsUserRights
    ```
 4. Optionally, run as **administrator** for system tools:
    ```powershell
-   .\setup-dev-environment.ps1 -ToolsAdminRights
+   .\setup-dev-environment-windows.ps1 -ToolsAdminRights
    ```
 
 ### Ubuntu/Debian
@@ -185,7 +185,7 @@ Install only specific tools, ignoring the config file:
 
 **Windows:**
 ```powershell
-.\setup-dev-environment.ps1 -ToolsUserRights -ForceInstall git,curl,docker
+.\setup-dev-environment-windows.ps1 -ToolsUserRights -ForceInstall git,curl,docker
 ```
 
 **Ubuntu:**
@@ -202,7 +202,7 @@ Install only specific tools, ignoring the config file:
 
 **Windows:**
 ```powershell
-.\setup-dev-environment.ps1 -ToolsUserRights -ConfigFile "path\to\custom.config"
+.\setup-dev-environment-windows.ps1 -ToolsUserRights -ConfigFile "path\to\custom.config"
 ```
 
 **Ubuntu:**

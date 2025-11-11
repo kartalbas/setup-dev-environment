@@ -135,15 +135,23 @@ function Read-ConfigFile {
         
         if ($line -match '^\[(.+)\]$') {
             $section = $matches[1]
-            
+
             if ($section -eq 'General') {
                 $currentSection = 'General'
                 $currentSubSection = ''
             }
+            elseif ($section -match '^General\.(.+)$') {
+                $currentSection = 'General'
+                $currentSubSection = $matches[1]
+
+                if (-not $config.General.ContainsKey($currentSubSection)) {
+                    $config.General[$currentSubSection] = @{}
+                }
+            }
             elseif ($section -match '^(UserLevel|AdminLevel)\.(.+)$') {
                 $currentSection = $matches[1]
                 $currentSubSection = $matches[2]
-                
+
                 if (-not $config[$currentSection].ContainsKey($currentSubSection)) {
                     $config[$currentSection][$currentSubSection] = @{}
                 }
@@ -164,9 +172,14 @@ function Read-ConfigFile {
             
             if ($value -eq 'true') { $value = $true }
             elseif ($value -eq 'false') { $value = $false }
-            
+
             if ($currentSection -eq 'General') {
-                $config.General[$key] = $value
+                if ($currentSubSection) {
+                    $config.General[$currentSubSection][$key] = $value
+                }
+                else {
+                    $config.General[$key] = $value
+                }
             }
             elseif ($currentSubSection) {
                 $config[$currentSection][$currentSubSection][$key] = $value
@@ -195,6 +208,94 @@ Write-Host "  Minimal Mode: $isMinimal" -ForegroundColor Gray
 
 if ($ForceInstall.Count -gt 0) {
     Write-Host "  Force Install: $($ForceInstall -join ', ')" -ForegroundColor Magenta
+}
+
+# ============================================================================
+# LOAD MODULES
+# ============================================================================
+
+$scriptPath = $PSCommandPath
+$scriptDir = Split-Path -Parent $scriptPath
+$ModulesPath = Join-Path $scriptDir "modules\windows"
+
+# Check if modules configuration exists
+if ($config.General.ContainsKey("Modules")) {
+    Write-Host "`n📦 Loading modules..." -ForegroundColor Cyan
+
+    $modulesConfig = $config.General.Modules
+    $modulesLoaded = 0
+    $modulesFailed = 0
+
+    # Load path-manager module
+    if ($modulesConfig.ContainsKey("path-manager") -and $modulesConfig["path-manager"]) {
+        $pathManagerPath = Join-Path $ModulesPath "path-manager\path-manager.ps1"
+        if (Test-Path $pathManagerPath) {
+            try {
+                Import-Module $pathManagerPath -Force -ErrorAction Stop
+                Write-Host "  ✓ path-manager loaded" -ForegroundColor Green
+                $modulesLoaded++
+            }
+            catch {
+                Write-Host "  ✗ Failed to load path-manager: $_" -ForegroundColor Red
+                $modulesFailed++
+            }
+        }
+        else {
+            Write-Host "  ✗ path-manager.ps1 not found at: $pathManagerPath" -ForegroundColor Red
+            $modulesFailed++
+        }
+    }
+
+    # Load winget-manager module
+    if ($modulesConfig.ContainsKey("winget-manager") -and $modulesConfig["winget-manager"]) {
+        $wingetManagerPath = Join-Path $ModulesPath "winget-manager\winget-manager.ps1"
+        if (Test-Path $wingetManagerPath) {
+            try {
+                Import-Module $wingetManagerPath -Force -ErrorAction Stop
+                Write-Host "  ✓ winget-manager loaded" -ForegroundColor Green
+                $modulesLoaded++
+            }
+            catch {
+                Write-Host "  ✗ Failed to load winget-manager: $_" -ForegroundColor Red
+                $modulesFailed++
+            }
+        }
+        else {
+            Write-Host "  ✗ winget-manager.ps1 not found at: $wingetManagerPath" -ForegroundColor Red
+            $modulesFailed++
+        }
+    }
+
+    # Load scoop-manager module
+    if ($modulesConfig.ContainsKey("scoop-manager") -and $modulesConfig["scoop-manager"]) {
+        $scoopManagerPath = Join-Path $ModulesPath "scoop-manager\scoop-manager.ps1"
+        if (Test-Path $scoopManagerPath) {
+            try {
+                Import-Module $scoopManagerPath -Force -ErrorAction Stop
+                Write-Host "  ✓ scoop-manager loaded" -ForegroundColor Green
+                $modulesLoaded++
+            }
+            catch {
+                Write-Host "  ✗ Failed to load scoop-manager: $_" -ForegroundColor Red
+                $modulesFailed++
+            }
+        }
+        else {
+            Write-Host "  ✗ scoop-manager.ps1 not found at: $scoopManagerPath" -ForegroundColor Red
+            $modulesFailed++
+        }
+    }
+
+    if ($modulesLoaded -gt 0) {
+        Write-Host "✓ $modulesLoaded module(s) loaded successfully" -ForegroundColor Green
+    }
+    if ($modulesFailed -gt 0) {
+        Write-Host "⚠️  $modulesFailed module(s) failed to load" -ForegroundColor Yellow
+    }
+}
+else {
+    Write-Host "`n⚠️  No module configuration found in config file" -ForegroundColor Yellow
+    Write-Host "  Add [General.Modules] section to enable module loading" -ForegroundColor Gray
 }
 
 # ============================================================================
