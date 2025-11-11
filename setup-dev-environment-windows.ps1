@@ -1,9 +1,95 @@
+<#
+.SYNOPSIS
+    Development environment setup script for Windows with configuration file support.
+
+.DESCRIPTION
+    This script automates the installation of development tools on Windows using Scoop
+    package manager (for user-level tools) and winget (for admin-level tools).
+
+    Tools are configured via a .config file (setup-dev-environment-windows.config by default).
+    The script supports both user-level installation (no admin rights) and admin-level
+    installation (requires admin rights).
+
+.PARAMETER ToolsUserRights
+    Install user-level tools using Scoop (NO ADMIN required).
+    Tools are installed to the path specified in the config file.
+
+.PARAMETER ToolsAdminRights
+    Install admin-level tools using winget (REQUIRES ADMIN).
+    Installs system-wide applications like Docker Desktop, browsers, etc.
+
+.PARAMETER ForceAdmin
+    Install EVERYTHING with admin rights (NOT RECOMMENDED).
+    Bypasses Scoop's security restrictions. Use only when absolutely necessary.
+
+.PARAMETER ConfigFile
+    Path to custom configuration file.
+    Default: setup-dev-environment-windows.config (in same directory as script)
+
+.PARAMETER ForceInstall
+    Install ONLY specified tools, ignoring config file settings.
+    Useful for quick installation of specific tools.
+
+.EXAMPLE
+    .\setup-dev-environment-windows.ps1 -ToolsUserRights
+    Install user-level tools (Git, Python, Node.js, etc.) without admin rights.
+
+.EXAMPLE
+    .\setup-dev-environment-windows.ps1 -ToolsAdminRights
+    Install admin-level tools (Docker Desktop, browsers, etc.) - requires admin rights.
+
+.EXAMPLE
+    .\setup-dev-environment-windows.ps1 -ForceAdmin
+    Install both user and admin tools with admin rights (NOT RECOMMENDED).
+
+.EXAMPLE
+    .\setup-dev-environment-windows.ps1 -ToolsUserRights -ForceInstall argocd
+    Install ONLY ArgoCD, ignoring config file.
+
+.EXAMPLE
+    .\setup-dev-environment-windows.ps1 -ToolsUserRights -ForceInstall argocd,terraform,kubectl
+    Install ONLY specified tools (comma-separated), ignoring config file.
+
+.EXAMPLE
+    .\setup-dev-environment-windows.ps1 -ToolsUserRights -ConfigFile "D:\my-config.config"
+    Use custom configuration file.
+
+.NOTES
+    File Name      : setup-dev-environment-windows.ps1
+    Version        : 4.0.1
+    Author         : Development Team
+    Prerequisite   : PowerShell 5.1 or higher
+
+    Configuration File:
+        Edit setup-dev-environment-windows.config to select which tools to install.
+        Set to 'true' to install, 'false' to skip each tool.
+
+    Installation Paths:
+        User-level tools: Configured in config file (default: D:\bin\scoop)
+        Admin-level tools: Standard system locations (Program Files, etc.)
+
+    Recommended Workflow:
+        1. Edit setup-dev-environment-windows.config
+        2. Run: .\setup-dev-environment-windows.ps1 -ToolsUserRights
+        3. (Optional) Run: .\setup-dev-environment-windows.ps1 -ToolsAdminRights
+        4. Restart terminal to use installed tools
+
+.LINK
+    https://github.com/kartalbas/setup-dev-environment
+    https://scoop.sh
+    https://github.com/microsoft/winget-cli
+
+#>
+
 # setup-dev-environment.ps1
 # Dynamic development environment setup with configuration file
 # Config file: setup-dev-environment-windows.config
-# Version: 4.0.0
+# Version: 4.0.1
 #
 # Changelog:
+# v4.0.1 - Fixed: Config file path construction bug (removed duplicate 'windows')
+#          Added comprehensive PowerShell help documentation with examples
+#          Enhanced help display with better formatting
 # v4.0.0 - BREAKING: Renamed config to setup-dev-environment-windows.config
 #          Changed to official NVM for Windows (removed Scoop's NVM)
 #          Node.js now installed via NVM LTS only
@@ -90,7 +176,9 @@ if ([string]::IsNullOrEmpty($ConfigFile)) {
     $scriptPath = $PSCommandPath
     $scriptDir = Split-Path -Parent $scriptPath
     $scriptName = [System.IO.Path]::GetFileNameWithoutExtension($scriptPath)
-    $ConfigFile = Join-Path $scriptDir "$scriptName-windows.config"
+    # Remove platform suffix if already present (e.g., 'setup-dev-environment-windows' -> 'setup-dev-environment')
+    $baseName = $scriptName -replace '-windows$', '' -replace '-macos$', '' -replace '-ubuntu$', ''
+    $ConfigFile = Join-Path $scriptDir "$baseName-windows.config"
 }
 
 if (-not (Test-Path $ConfigFile)) {
@@ -101,8 +189,24 @@ if (-not (Test-Path $ConfigFile)) {
 
 Configuration file not found: $ConfigFile
 
-Please create the configuration file or specify a different path:
-  .\setup-dev-environment.ps1 -ToolsUserRights -ConfigFile "path\to\config"
+WHAT TO DO:
+
+  1. Create a configuration file by copying the template:
+     Copy-Item "setup-dev-environment-windows.config.template" "$ConfigFile"
+
+  2. Or use a different config file:
+     .\setup-dev-environment-windows.ps1 -ToolsUserRights -ConfigFile "path\to\your.config"
+
+  3. Or use ForceInstall to install specific tools without config:
+     .\setup-dev-environment-windows.ps1 -ToolsUserRights -ForceInstall git,python
+
+EXPECTED CONFIG FILE LOCATION:
+  Script directory: $scriptDir
+  Config file:      $ConfigFile
+
+For more help:
+  .\setup-dev-environment-windows.ps1
+  Get-Help .\setup-dev-environment-windows.ps1 -Full
 
 "@ -ForegroundColor Red
     exit 1
@@ -305,33 +409,76 @@ else {
 if (-not $ToolsUserRights -and -not $ToolsAdminRights) {
     Write-Host @"
 ╔════════════════════════════════════════════════════════════════╗
-║                     ⚠️  MISSING PARAMETER  ⚠️                   ║
+║              📖 DEVELOPMENT ENVIRONMENT SETUP HELP             ║
 ╚════════════════════════════════════════════════════════════════╝
 
-Please specify installation mode:
+DESCRIPTION:
+  Automated development environment setup for Windows using Scoop
+  (user-level) and winget (admin-level) package managers.
 
-  -ToolsUserRights     Install user-level tools (NO ADMIN)
-  -ToolsAdminRights    Install admin-level tools (REQUIRES ADMIN)
-  -ForceAdmin          Install EVERYTHING with admin rights (NOT RECOMMENDED)
-                       Bypasses Scoop security restrictions
+USAGE:
+  .\setup-dev-environment-windows.ps1 -ToolsUserRights
+  .\setup-dev-environment-windows.ps1 -ToolsAdminRights
+  .\setup-dev-environment-windows.ps1 -ForceAdmin
 
-Optional parameters:
+PARAMETERS:
+
+  -ToolsUserRights
+      Install user-level tools using Scoop (NO ADMIN required)
+      Includes: Git, Python, Node.js, Docker CLI, Kubernetes tools, etc.
+
+  -ToolsAdminRights
+      Install admin-level tools using winget (REQUIRES ADMIN)
+      Includes: Docker Desktop, Browsers, PowerToys, Windows Terminal, etc.
+
+  -ForceAdmin
+      Install EVERYTHING with admin rights (⚠️  NOT RECOMMENDED)
+      Bypasses Scoop security restrictions. Use only when necessary.
+
+  -ConfigFile <path>
+      Use custom configuration file
+      Default: setup-dev-environment-windows.config
 
   -ForceInstall <tool1>,<tool2>,...
-                      Install ONLY these specific tools (ignores config)
+      Install ONLY specified tools, ignoring config file
+      Useful for quick installation of specific tools
 
-Examples:
+EXAMPLES:
 
-  .\setup-dev-environment.ps1 -ToolsUserRights
-  .\setup-dev-environment.ps1 -ToolsAdminRights
-  .\setup-dev-environment.ps1 -ForceAdmin
-  .\setup-dev-environment.ps1 -ToolsUserRights -ForceInstall argocd
-  .\setup-dev-environment.ps1 -ToolsUserRights -ForceInstall argocd,terraform,kubectl
+  # Install user-level tools (recommended first step)
+  .\setup-dev-environment-windows.ps1 -ToolsUserRights
 
+  # Install admin-level tools (run as Administrator)
+  .\setup-dev-environment-windows.ps1 -ToolsAdminRights
 
-Edit $ConfigFile to select which tools to install.
+  # Install specific tool only
+  .\setup-dev-environment-windows.ps1 -ToolsUserRights -ForceInstall argocd
 
-"@ -ForegroundColor Yellow
+  # Install multiple specific tools
+  .\setup-dev-environment-windows.ps1 -ToolsUserRights -ForceInstall git,python,kubectl
+
+  # Use custom config file
+  .\setup-dev-environment-windows.ps1 -ToolsUserRights -ConfigFile "D:\my-config.config"
+
+  # Get detailed PowerShell help
+  Get-Help .\setup-dev-environment-windows.ps1 -Full
+
+CONFIGURATION:
+  Edit $ConfigFile to select which tools to install.
+  Set each tool to 'true' (install) or 'false' (skip).
+
+RECOMMENDED WORKFLOW:
+  1. Edit setup-dev-environment-windows.config
+  2. Run: .\setup-dev-environment-windows.ps1 -ToolsUserRights
+  3. Restart terminal
+  4. (Optional) Run: .\setup-dev-environment-windows.ps1 -ToolsAdminRights
+  5. Restart computer (if Docker Desktop was installed)
+
+MORE HELP:
+  Get-Help .\setup-dev-environment-windows.ps1 -Full
+  Get-Help .\setup-dev-environment-windows.ps1 -Examples
+
+"@ -ForegroundColor Cyan
     exit 1
 }
 

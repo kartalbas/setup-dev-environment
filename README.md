@@ -177,6 +177,59 @@ pip-packages=true               # Install pylint, black, flake8, mypy, pytest
 
 Simply set values to `true` or `false` to enable/disable specific tools.
 
+## 📖 Getting Help
+
+### Windows PowerShell Help
+
+The Windows script includes comprehensive built-in help documentation using PowerShell's native help system:
+
+```powershell
+# Display basic help
+Get-Help .\setup-dev-environment-windows.ps1
+
+# Display detailed help
+Get-Help .\setup-dev-environment-windows.ps1 -Detailed
+
+# Display full help with examples
+Get-Help .\setup-dev-environment-windows.ps1 -Full
+
+# Display only examples
+Get-Help .\setup-dev-environment-windows.ps1 -Examples
+
+# Run script without parameters to see usage
+.\setup-dev-environment-windows.ps1
+```
+
+The help system includes:
+- **Synopsis**: Brief description of what the script does
+- **Description**: Detailed explanation of functionality
+- **Parameters**: Complete parameter documentation with descriptions
+- **Examples**: Real-world usage examples for common scenarios
+- **Notes**: Important information about prerequisites and workflow
+- **Links**: Related resources and documentation
+
+### Quick Help (All Platforms)
+
+Running any script without parameters shows a helpful usage guide:
+
+**Windows:**
+```powershell
+.\setup-dev-environment-windows.ps1
+# Shows comprehensive help with parameters, examples, and workflow
+```
+
+**Ubuntu/Debian:**
+```bash
+./setup-dev-environment-ubuntu.sh --help
+# Shows usage information and available options
+```
+
+**macOS:**
+```bash
+./setup-dev-environment-macos.sh --help
+# Shows usage information and available options
+```
+
 ## 🔧 Advanced Usage
 
 ### Force Install Specific Tools

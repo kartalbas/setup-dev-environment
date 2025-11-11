@@ -332,24 +332,75 @@ install_pnpm() {
 # ============================================================================
 
 print_usage() {
-    cat << EOF
-Usage: $0 [OPTIONS]
+    cat << 'EOF'
+╔════════════════════════════════════════════════════════════════╗
+║              📖 DEVELOPMENT ENVIRONMENT SETUP HELP             ║
+╚════════════════════════════════════════════════════════════════╝
 
-Options:
-  --user              Install user-level tools (no sudo required)
-  --admin             Install admin-level tools (requires sudo)
-  --config FILE       Specify custom config file
-  --force-install TOOLS  Install only specific tools (comma-separated)
-  --help              Show this help message
+DESCRIPTION:
+  Automated development environment setup for Ubuntu/Debian using apt,
+  snap, and direct installers for various development tools.
 
-Examples:
-  $0 --user
-  $0 --admin
-  $0 --user --config custom.config
-  $0 --user --force-install git,curl,docker
+USAGE:
+  ./setup-dev-environment-ubuntu.sh --user
+  ./setup-dev-environment-ubuntu.sh --admin
+  ./setup-dev-environment-ubuntu.sh --help
+
+PARAMETERS:
+
+  --user
+      Install user-level tools (NO SUDO required)
+      Includes: Git, Python, Node.js, Docker CLI, Kubernetes tools, etc.
+
+  --admin
+      Install admin-level tools (REQUIRES SUDO)
+      Includes: System packages, Docker Engine, databases, GUI applications
+
+  --config <path>
+      Use custom configuration file
+      Default: setup-dev-environment-ubuntu.config
+
+  --force-install <tool1>,<tool2>,...
+      Install ONLY specified tools, ignoring config file
+      Useful for quick installation of specific tools
+
+  --help
+      Show this help message
+
+EXAMPLES:
+
+  # Install user-level tools (recommended first step)
+  ./setup-dev-environment-ubuntu.sh --user
+
+  # Install admin-level tools (run with sudo)
+  sudo ./setup-dev-environment-ubuntu.sh --admin
+
+  # Install specific tool only
+  ./setup-dev-environment-ubuntu.sh --user --force-install git
+
+  # Install multiple specific tools
+  ./setup-dev-environment-ubuntu.sh --user --force-install git,python,kubectl
+
+  # Use custom config file
+  ./setup-dev-environment-ubuntu.sh --user --config /path/to/custom.config
+
+CONFIGURATION:
+  Edit setup-dev-environment-ubuntu.config to select which tools to install.
+  Set each tool to 'true' (install) or 'false' (skip).
+
+RECOMMENDED WORKFLOW:
+  1. Edit setup-dev-environment-ubuntu.config
+  2. Run: ./setup-dev-environment-ubuntu.sh --user
+  3. Restart terminal
+  4. (Optional) Run: sudo ./setup-dev-environment-ubuntu.sh --admin
+  5. Verify installations with: git --version, python3 --version, etc.
+
+MORE HELP:
+  README: https://github.com/kartalbas/setup-dev-environment
+  Issues: https://github.com/kartalbas/setup-dev-environment/issues
 
 EOF
-    exit 1
+    exit 0
 }
 
 while [[ $# -gt 0 ]]; do

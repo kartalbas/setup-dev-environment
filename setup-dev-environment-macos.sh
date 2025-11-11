@@ -360,24 +360,83 @@ install_pnpm() {
 # ============================================================================
 
 print_usage() {
-    cat << EOF
-Usage: $0 [OPTIONS]
+    cat << 'EOF'
+╔════════════════════════════════════════════════════════════════╗
+║              📖 DEVELOPMENT ENVIRONMENT SETUP HELP             ║
+╚════════════════════════════════════════════════════════════════╝
 
-Options:
-  --user              Install user-level tools
-  --apps              Install GUI applications (Homebrew Casks)
-  --config FILE       Specify custom config file
-  --force-install TOOLS  Install only specific tools (comma-separated)
-  --help              Show this help message
+DESCRIPTION:
+  Automated development environment setup for macOS using Homebrew
+  package manager for CLI tools and Homebrew Casks for GUI applications.
 
-Examples:
-  $0 --user
-  $0 --apps
-  $0 --user --config custom.config
-  $0 --user --force-install git,curl,docker
+USAGE:
+  ./setup-dev-environment-macos.sh --user
+  ./setup-dev-environment-macos.sh --apps
+  ./setup-dev-environment-macos.sh --help
+
+PARAMETERS:
+
+  --user
+      Install user-level CLI tools via Homebrew
+      Includes: Git, Python, Node.js, Docker CLI, Kubernetes tools, etc.
+
+  --apps
+      Install GUI applications via Homebrew Casks
+      Includes: VSCode, iTerm2, Docker Desktop, browsers, productivity apps
+
+  --config <path>
+      Use custom configuration file
+      Default: setup-dev-environment-macos.config
+
+  --force-install <tool1>,<tool2>,...
+      Install ONLY specified tools, ignoring config file
+      Useful for quick installation of specific tools
+
+  --help
+      Show this help message
+
+EXAMPLES:
+
+  # Install CLI tools (recommended first step)
+  ./setup-dev-environment-macos.sh --user
+
+  # Install GUI applications
+  ./setup-dev-environment-macos.sh --apps
+
+  # Install both CLI tools and apps
+  ./setup-dev-environment-macos.sh --user && ./setup-dev-environment-macos.sh --apps
+
+  # Install specific tool only
+  ./setup-dev-environment-macos.sh --user --force-install git
+
+  # Install multiple specific tools
+  ./setup-dev-environment-macos.sh --user --force-install git,python,kubectl
+
+  # Use custom config file
+  ./setup-dev-environment-macos.sh --user --config /path/to/custom.config
+
+CONFIGURATION:
+  Edit setup-dev-environment-macos.config to select which tools to install.
+  Set each tool to 'true' (install) or 'false' (skip).
+
+RECOMMENDED WORKFLOW:
+  1. Edit setup-dev-environment-macos.config
+  2. Run: ./setup-dev-environment-macos.sh --user
+  3. Run: ./setup-dev-environment-macos.sh --apps (optional)
+  4. Restart terminal
+  5. Verify installations with: git --version, python3 --version, etc.
+
+NOTES:
+  - Homebrew will be installed automatically if not present
+  - Xcode Command Line Tools will be installed if needed
+  - Some applications may require password for installation
+
+MORE HELP:
+  README: https://github.com/kartalbas/setup-dev-environment
+  Issues: https://github.com/kartalbas/setup-dev-environment/issues
 
 EOF
-    exit 1
+    exit 0
 }
 
 while [[ $# -gt 0 ]]; do
