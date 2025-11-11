@@ -1,0 +1,21 @@
+# User-specific config files (keep templates)
+*.config.local
+*.config.backup
+
+# Logs
+*.log
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.bak
