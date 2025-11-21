@@ -412,6 +412,114 @@ function Get-WingetPackageInfo {
     }
 }
 
+<#
+.SYNOPSIS
+    Gets list of packages with available updates
+.EXAMPLE
+    Get-WingetAvailableUpdates
+#>
+function Get-WingetAvailableUpdates {
+    [CmdletBinding()]
+    param()
+
+    if (-not (Test-WingetAvailable)) {
+        Write-WingetOutput "Winget not available" "Error"
+        return @()
+    }
+
+    try {
+        # Update sources first
+        winget source update 2>&1 | Out-Null
+
+        # Get upgrade list
+        $rawOutput = winget upgrade --accept-source-agreements 2>&1 | Out-String
+        return $rawOutput
+    }
+    catch {
+        Write-WingetOutput "Failed to get updates: $_" "Error"
+        return @()
+    }
+}
+
+<#
+.SYNOPSIS
+    Updates winget sources
+.EXAMPLE
+    Update-WingetSources
+#>
+function Update-WingetSources {
+    [CmdletBinding()]
+    param()
+
+    if (-not (Test-WingetAvailable)) {
+        Write-WingetOutput "Winget not available" "Error"
+        return $false
+    }
+
+    try {
+        Write-WingetOutput "Updating package sources..." "Info"
+        winget source update 2>&1 | Out-Null
+        Write-WingetOutput "Sources updated" "Success"
+        return $true
+    }
+    catch {
+        Write-WingetOutput "Failed to update sources: $_" "Error"
+        return $false
+    }
+}
+
+<#
+.SYNOPSIS
+    Upgrades a package with retry logic
+.PARAMETER PackageId
+    The winget package ID
+.PARAMETER MaxRetries
+    Maximum number of retry attempts (default: 3)
+.EXAMPLE
+    Invoke-WingetUpgradeWithRetry -PackageId "Git.Git"
+#>
+function Invoke-WingetUpgradeWithRetry {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$PackageId,
+
+        [Parameter(Mandatory=$false)]
+        [int]$MaxRetries = 3
+    )
+
+    if (-not (Test-WingetAvailable)) {
+        return $false
+    }
+
+    $attempts = @(
+        @{ Args = @("upgrade", "--id", $PackageId, "--silent", "--accept-source-agreements", "--accept-package-agreements") },
+        @{ Args = @("upgrade", "--id", $PackageId, "--force", "--accept-source-agreements", "--accept-package-agreements") },
+        @{ Args = @("upgrade", "--id", $PackageId, "--force", "--accept-source-agreements", "--accept-package-agreements") },
+        @{ Args = @("install", "--id", $PackageId, "--force", "--accept-source-agreements", "--accept-package-agreements") }
+    )
+
+    $attemptNum = 0
+    foreach ($attempt in $attempts) {
+        $attemptNum++
+        if ($attemptNum -gt $MaxRetries) { break }
+
+        try {
+            $result = & winget $attempt.Args 2>&1 | Out-String
+            $exitCode = $LASTEXITCODE
+
+            if ($exitCode -eq 0) {
+                return $true
+            }
+        }
+        catch {
+            continue
+        }
+    }
+
+    return $false
+}
+
 # ============================================================================
 # EXPORTS
 # ============================================================================
@@ -423,5 +531,8 @@ Export-ModuleMember -Function @(
     'Update-WingetPackage',
     'Search-WingetPackage',
     'Get-WingetInstalledPackages',
-    'Get-WingetPackageInfo'
+    'Get-WingetPackageInfo',
+    'Get-WingetAvailableUpdates',
+    'Update-WingetSources',
+    'Invoke-WingetUpgradeWithRetry'
 )

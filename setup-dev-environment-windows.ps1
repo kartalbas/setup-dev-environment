@@ -322,86 +322,6 @@ $scriptPath = $PSCommandPath
 $scriptDir = Split-Path -Parent $scriptPath
 $ModulesPath = Join-Path $scriptDir "modules\windows"
 
-# Check if modules configuration exists
-if ($config.General.ContainsKey("Modules")) {
-    Write-Host "`n📦 Loading modules..." -ForegroundColor Cyan
-
-    $modulesConfig = $config.General.Modules
-    $modulesLoaded = 0
-    $modulesFailed = 0
-
-    # Load path-manager module
-    if ($modulesConfig.ContainsKey("path-manager") -and $modulesConfig["path-manager"]) {
-        $pathManagerPath = Join-Path $ModulesPath "path-manager\path-manager.ps1"
-        if (Test-Path $pathManagerPath) {
-            try {
-                Import-Module $pathManagerPath -Force -ErrorAction Stop
-                Write-Host "  ✓ path-manager loaded" -ForegroundColor Green
-                $modulesLoaded++
-            }
-            catch {
-                Write-Host "  ✗ Failed to load path-manager: $_" -ForegroundColor Red
-                $modulesFailed++
-            }
-        }
-        else {
-            Write-Host "  ✗ path-manager.ps1 not found at: $pathManagerPath" -ForegroundColor Red
-            $modulesFailed++
-        }
-    }
-
-    # Load winget-manager module
-    if ($modulesConfig.ContainsKey("winget-manager") -and $modulesConfig["winget-manager"]) {
-        $wingetManagerPath = Join-Path $ModulesPath "winget-manager\winget-manager.ps1"
-        if (Test-Path $wingetManagerPath) {
-            try {
-                Import-Module $wingetManagerPath -Force -ErrorAction Stop
-                Write-Host "  ✓ winget-manager loaded" -ForegroundColor Green
-                $modulesLoaded++
-            }
-            catch {
-                Write-Host "  ✗ Failed to load winget-manager: $_" -ForegroundColor Red
-                $modulesFailed++
-            }
-        }
-        else {
-            Write-Host "  ✗ winget-manager.ps1 not found at: $wingetManagerPath" -ForegroundColor Red
-            $modulesFailed++
-        }
-    }
-
-    # Load scoop-manager module
-    if ($modulesConfig.ContainsKey("scoop-manager") -and $modulesConfig["scoop-manager"]) {
-        $scoopManagerPath = Join-Path $ModulesPath "scoop-manager\scoop-manager.ps1"
-        if (Test-Path $scoopManagerPath) {
-            try {
-                Import-Module $scoopManagerPath -Force -ErrorAction Stop
-                Write-Host "  ✓ scoop-manager loaded" -ForegroundColor Green
-                $modulesLoaded++
-            }
-            catch {
-                Write-Host "  ✗ Failed to load scoop-manager: $_" -ForegroundColor Red
-                $modulesFailed++
-            }
-        }
-        else {
-            Write-Host "  ✗ scoop-manager.ps1 not found at: $scoopManagerPath" -ForegroundColor Red
-            $modulesFailed++
-        }
-    }
-
-    if ($modulesLoaded -gt 0) {
-        Write-Host "✓ $modulesLoaded module(s) loaded successfully" -ForegroundColor Green
-    }
-    if ($modulesFailed -gt 0) {
-        Write-Host "⚠️  $modulesFailed module(s) failed to load" -ForegroundColor Yellow
-    }
-}
-else {
-    Write-Host "`n⚠️  No module configuration found in config file" -ForegroundColor Yellow
-    Write-Host "  Add [General.Modules] section to enable module loading" -ForegroundColor Gray
-}
-
 # ============================================================================
 # VALIDATE PARAMETERS
 # ============================================================================
@@ -868,6 +788,245 @@ function Update-SystemPath {
     Write-Host "  ✓ Added to PATH: $NewPath" -ForegroundColor Green
 }
 
+function Install-PowerShellModules {
+    param(
+        [hashtable]$ModulesConfig,
+        [string]$ModulesSourcePath
+    )
+
+    if (-not $ModulesConfig) {
+        return
+    }
+
+    # Determine PowerShell modules directory
+    $psVersion = $PSVersionTable.PSVersion.Major
+    if ($psVersion -ge 6) {
+        # PowerShell Core/7+
+        $modulesDir = Join-Path $env:USERPROFILE "Documents\PowerShell\Modules"
+    } else {
+        # Windows PowerShell 5.1
+        $modulesDir = Join-Path $env:USERPROFILE "Documents\WindowsPowerShell\Modules"
+    }
+
+    # Ensure modules directory exists
+    if (-not (Test-Path $modulesDir)) {
+        New-Item -Path $modulesDir -ItemType Directory -Force | Out-Null
+    }
+
+    $modulesInstalled = @()
+    $modulesFailed = @()
+
+    # Install path-manager
+    if (Get-ConfigValue $ModulesConfig "path-manager") {
+        $moduleName = "path-manager"
+        $sourcePath = Join-Path $ModulesSourcePath "$moduleName\$moduleName.psm1"
+        $destDir = Join-Path $modulesDir $moduleName
+
+        if (Test-Path $sourcePath) {
+            try {
+                # Create module directory
+                if (-not (Test-Path $destDir)) {
+                    New-Item -Path $destDir -ItemType Directory -Force | Out-Null
+                }
+
+                # Copy module file
+                Copy-Item -Path $sourcePath -Destination (Join-Path $destDir "$moduleName.psm1") -Force
+                Write-Host "  ✓ $moduleName installed to PowerShell modules" -ForegroundColor Green
+                $modulesInstalled += $moduleName
+            }
+            catch {
+                Write-Host "  ✗ Failed to install $moduleName : $_" -ForegroundColor Red
+                $modulesFailed += $moduleName
+            }
+        }
+        else {
+            Write-Host "  ⚠️  $moduleName source not found at: $sourcePath" -ForegroundColor Yellow
+            $modulesFailed += $moduleName
+        }
+    }
+
+    # Install winget-manager
+    if (Get-ConfigValue $ModulesConfig "winget-manager") {
+        $moduleName = "winget-manager"
+        $sourcePath = Join-Path $ModulesSourcePath "$moduleName\$moduleName.psm1"
+        $destDir = Join-Path $modulesDir $moduleName
+
+        if (Test-Path $sourcePath) {
+            try {
+                if (-not (Test-Path $destDir)) {
+                    New-Item -Path $destDir -ItemType Directory -Force | Out-Null
+                }
+                Copy-Item -Path $sourcePath -Destination (Join-Path $destDir "$moduleName.psm1") -Force
+                Write-Host "  ✓ $moduleName installed to PowerShell modules" -ForegroundColor Green
+                $modulesInstalled += $moduleName
+            }
+            catch {
+                Write-Host "  ✗ Failed to install $moduleName : $_" -ForegroundColor Red
+                $modulesFailed += $moduleName
+            }
+        }
+        else {
+            Write-Host "  ⚠️  $moduleName source not found at: $sourcePath" -ForegroundColor Yellow
+            $modulesFailed += $moduleName
+        }
+    }
+
+    # Install scoop-manager
+    if (Get-ConfigValue $ModulesConfig "scoop-manager") {
+        $moduleName = "scoop-manager"
+        $sourcePath = Join-Path $ModulesSourcePath "$moduleName\$moduleName.psm1"
+        $destDir = Join-Path $modulesDir $moduleName
+
+        if (Test-Path $sourcePath) {
+            try {
+                if (-not (Test-Path $destDir)) {
+                    New-Item -Path $destDir -ItemType Directory -Force | Out-Null
+                }
+                Copy-Item -Path $sourcePath -Destination (Join-Path $destDir "$moduleName.psm1") -Force
+                Write-Host "  ✓ $moduleName installed to PowerShell modules" -ForegroundColor Green
+                $modulesInstalled += $moduleName
+            }
+            catch {
+                Write-Host "  ✗ Failed to install $moduleName : $_" -ForegroundColor Red
+                $modulesFailed += $moduleName
+            }
+        }
+        else {
+            Write-Host "  ⚠️  $moduleName source not found at: $sourcePath" -ForegroundColor Yellow
+            $modulesFailed += $moduleName
+        }
+    }
+
+    # Update PowerShell profile to auto-import modules
+    if ($modulesInstalled.Count -gt 0) {
+        $profilePath = $PROFILE
+        $profileDir = Split-Path -Parent $profilePath
+
+        # Ensure profile directory exists
+        if (-not (Test-Path $profileDir)) {
+            New-Item -Path $profileDir -ItemType Directory -Force | Out-Null
+        }
+
+        # Create profile if it doesn't exist
+        if (-not (Test-Path $profilePath)) {
+            New-Item -Path $profilePath -ItemType File -Force | Out-Null
+        }
+
+        # Read existing profile content
+        $profileContent = Get-Content $profilePath -Raw -ErrorAction SilentlyContinue
+        if (-not $profileContent) {
+            $profileContent = ""
+        }
+
+        # Check if auto-import section exists
+        if ($profileContent -notmatch "# Auto-import custom PowerShell modules") {
+            $importBlock = @"
+
+# ============================================================================
+# Auto-import custom PowerShell modules
+# Added by setup-dev-environment.ps1
+# ============================================================================
+
+"@
+            foreach ($mod in $modulesInstalled) {
+                $importBlock += @"
+# Import $mod module
+if (Get-Module -ListAvailable -Name $mod) {
+    Import-Module $mod -ErrorAction SilentlyContinue
+}
+
+"@
+            }
+
+            Add-Content -Path $profilePath -Value $importBlock
+            Write-Host "  ✓ PowerShell profile updated to auto-import modules" -ForegroundColor Green
+            Write-Host "    Profile location: $profilePath" -ForegroundColor Gray
+        }
+        else {
+            Write-Host "  ℹ️  PowerShell profile already configured for module auto-import" -ForegroundColor Cyan
+        }
+
+        Write-Host "`n  💡 Modules are now globally available!" -ForegroundColor Cyan
+        Write-Host "     Open a new PowerShell session or run:" -ForegroundColor Gray
+        Write-Host "     . `$PROFILE" -ForegroundColor Yellow
+    }
+
+    if ($modulesFailed.Count -gt 0) {
+        Write-Host "  ⚠️  $($modulesFailed.Count) module(s) failed to install" -ForegroundColor Yellow
+    }
+}
+
+function Install-CustomTools {
+    param(
+        [string]$ToolsSourcePath,
+        [string]$InstallPath
+    )
+
+    # Check if tools source directory exists
+    if (-not (Test-Path $ToolsSourcePath)) {
+        Write-Host "  ℹ️  No custom tools found at: $ToolsSourcePath" -ForegroundColor Gray
+        return
+    }
+
+    # Get all PowerShell scripts from tools directory
+    $toolScripts = Get-ChildItem -Path $ToolsSourcePath -Filter "*.ps1" -File -ErrorAction SilentlyContinue
+
+    if ($toolScripts.Count -eq 0) {
+        Write-Host "  ℹ️  No tools to deploy" -ForegroundColor Gray
+        return
+    }
+
+    # Create tools directory in install path
+    $toolsDestPath = Join-Path $InstallPath "tools"
+    if (-not (Test-Path $toolsDestPath)) {
+        New-Item -Path $toolsDestPath -ItemType Directory -Force | Out-Null
+    }
+
+    $toolsDeployed = @()
+    $toolsFailed = @()
+
+    Write-Host "  → Deploying custom tools to: $toolsDestPath" -ForegroundColor Cyan
+
+    foreach ($tool in $toolScripts) {
+        try {
+            $destPath = Join-Path $toolsDestPath $tool.Name
+            Copy-Item -Path $tool.FullName -Destination $destPath -Force
+            Write-Host "  ✓ $($tool.Name) deployed" -ForegroundColor Green
+            $toolsDeployed += $tool.Name
+        }
+        catch {
+            Write-Host "  ✗ Failed to deploy $($tool.Name): $_" -ForegroundColor Red
+            $toolsFailed += $tool.Name
+        }
+    }
+
+    # Add tools directory to PATH if tools were deployed successfully
+    if ($toolsDeployed.Count -gt 0) {
+        $currentPath = [Environment]::GetEnvironmentVariable("Path", "User")
+        $pathEntries = $currentPath -split ';' | Where-Object { $_ }
+
+        if ($pathEntries -notcontains $toolsDestPath) {
+            Write-Host "  → Adding tools directory to PATH..." -ForegroundColor Cyan
+            Update-SystemPath -NewPath $toolsDestPath
+        }
+        else {
+            Write-Host "  ✓ PATH already contains: $toolsDestPath" -ForegroundColor Green
+        }
+
+        Write-Host "`n  💡 Deployed tools are now available!" -ForegroundColor Cyan
+        Write-Host "     $($toolsDeployed.Count) tool(s) deployed:" -ForegroundColor Gray
+        foreach ($tool in $toolsDeployed) {
+            Write-Host "     • $tool" -ForegroundColor Gray
+        }
+        Write-Host "`n     You can run them from any location:" -ForegroundColor Gray
+        Write-Host "     pwsh $toolsDestPath\<tool-name>.ps1" -ForegroundColor Yellow
+    }
+
+    if ($toolsFailed.Count -gt 0) {
+        Write-Host "  ⚠️  $($toolsFailed.Count) tool(s) failed to deploy" -ForegroundColor Yellow
+    }
+}
+
 function Install-NVMForWindows {
     param([bool]$ShouldInstall = $true)
 
@@ -1083,20 +1242,64 @@ if ($ToolsUserRights) {
     if (Test-Path $scoopShims) {
         Update-SystemPath $scoopShims
     }
-    
+
+    # ========================================================================
+    # DEPLOY CUSTOM TOOLS
+    # ========================================================================
+
+    Write-Section "🛠️  Custom Tools Deployment"
+
+    $toolsSourcePath = Join-Path $scriptDir "tools"
+    Install-CustomTools -ToolsSourcePath $toolsSourcePath -InstallPath $installPath
+
     # ========================================================================
     # FORCE INSTALL MODE - Skip all sections and install only specified tools
     # ========================================================================
     
     if ($ForceInstall.Count -gt 0) {
         Write-Section "🎯 Force Install Mode - Installing Specified Tools Only"
-        
+
+        # Track installation results
+        $successfulTools = @()
+        $failedTools = @()
+        $skippedTools = @()
+        $alreadyInstalled = @()
+
+        # Tool name suggestions for common mistakes
+        $toolSuggestions = @{
+            "claude" = @{
+                correct = "claude-code"
+                reason = "Claude Code is an npm package, not a Scoop package"
+                hint = "Use: -ForceInstall claude-code"
+            }
+            "node" = @{
+                correct = "nodejs"
+                reason = "The package name in Scoop is 'nodejs'"
+                hint = "Use: -ForceInstall nodejs"
+            }
+            "python3" = @{
+                correct = "python"
+                reason = "The package name in Scoop is 'python'"
+                hint = "Use: -ForceInstall python"
+            }
+        }
+
         foreach ($tool in $ForceInstall) {
             Write-Host "`n→ Force installing: $tool" -ForegroundColor Magenta
             
             # Special handling for git - use Git for Windows
             if ($tool -eq "git") {
+                $gitExistedBefore = Test-CommandExists git
                 Install-GitForWindows -ShouldInstall $true
+                if (Test-CommandExists git) {
+                    if ($gitExistedBefore) {
+                        $alreadyInstalled += "git"
+                    } else {
+                        $successfulTools += "git"
+                    }
+                } else {
+                    $failedTools += @{tool="git"; reason="Installation failed"}
+                }
                 continue
             }
             
@@ -1112,45 +1315,163 @@ if ($ToolsUserRights) {
                         $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
                     } else {
                         Write-Host "  ✗ Failed to install Node.js" -ForegroundColor Red
+                        $failedTools += @{tool="claude-code"; reason="npm not found and Node.js installation failed"}
                         continue
                     }
                 }
-                
+
                 # Check if already installed
                 $claudeInstalled = npm list -g @anthropic-ai/claude-code 2>&1 | Select-String "@anthropic-ai/claude-code"
                 if ($claudeInstalled) {
                     Write-Host "  ✓ claude-code already installed" -ForegroundColor Green
+                    $alreadyInstalled += "claude-code"
                 } else {
                     Write-Host "  → Installing claude-code via npm..." -ForegroundColor Cyan
                     npm install -g @anthropic-ai/claude-code --silent 2>&1 | Out-Null
                     if ($LASTEXITCODE -eq 0) {
                         Write-Host "  ✓ claude-code installed successfully" -ForegroundColor Green
+                        $successfulTools += "claude-code"
                     } else {
                         Write-Host "  ✗ Failed to install claude-code" -ForegroundColor Red
                         Write-Host "  💡 Try manually: npm install -g @anthropic-ai/claude-code" -ForegroundColor Yellow
+                        $failedTools += @{tool="claude-code"; reason="npm install failed"}
                     }
                 }
                 continue
             }
             
+            # Check if tool name has a known suggestion
+            if ($toolSuggestions.ContainsKey($tool)) {
+                $suggestion = $toolSuggestions[$tool]
+                Write-Host "  ⚠️  Tool '$tool' not found" -ForegroundColor Yellow
+                Write-Host "  💡 Did you mean '$($suggestion.correct)'?" -ForegroundColor Cyan
+                Write-Host "     $($suggestion.reason)" -ForegroundColor Gray
+                Write-Host "     $($suggestion.hint)" -ForegroundColor Cyan
+                $failedTools += @{tool=$tool; reason="Tool not found. Did you mean '$($suggestion.correct)'?"}
+                continue
+            }
+
             $installed = scoop list 2>$null | Select-String -Pattern "^$tool "
             if ($installed) {
                 Write-Host "  ✓ $tool already installed" -ForegroundColor Green
+                $alreadyInstalled += $tool
             } else {
                 Write-Host "  → Installing $tool..." -ForegroundColor Cyan
                 scoop install $tool 2>&1 | Out-Null
                 if ($LASTEXITCODE -eq 0) {
                     Write-Host "  ✓ $tool installed successfully" -ForegroundColor Green
+                    $successfulTools += $tool
                 } else {
                     Write-Host "  ✗ Failed to install $tool" -ForegroundColor Red
                     Write-Host "  💡 Try: scoop search $tool" -ForegroundColor Yellow
+                    $failedTools += @{tool=$tool; reason="Not found in Scoop. Try: scoop search $tool"}
                 }
             }
         }
-        
-        Write-Host "`n✅ Force install complete!" -ForegroundColor Green
-        Write-Host "Installed tools: $($ForceInstall -join ', ')" -ForegroundColor Cyan
-        exit 0
+
+        # ====================================================================
+        # Display detailed installation summary
+        # ====================================================================
+        Write-Host ""
+        Write-Host ("═" * 70) -ForegroundColor DarkGray
+        Write-Host " 📊 Installation Summary" -ForegroundColor Cyan
+        Write-Host ("═" * 70) -ForegroundColor DarkGray
+
+        $totalTools = $ForceInstall.Count
+        $totalSuccess = $successfulTools.Count
+        $totalAlreadyInstalled = $alreadyInstalled.Count
+        $totalFailed = $failedTools.Count
+
+        # Determine overall status
+        if ($totalFailed -eq 0 -and ($totalSuccess -gt 0 -or $totalAlreadyInstalled -gt 0)) {
+            Write-Host " ✅ All tools installed successfully!" -ForegroundColor Green
+        }
+        elseif ($totalFailed -gt 0 -and ($totalSuccess -gt 0 -or $totalAlreadyInstalled -gt 0)) {
+            Write-Host " ⚠️  Installation completed with some failures" -ForegroundColor Yellow
+        }
+        elseif ($totalFailed -gt 0 -and $totalSuccess -eq 0 -and $totalAlreadyInstalled -eq 0) {
+            Write-Host " ❌ Installation failed" -ForegroundColor Red
+        }
+        elseif ($totalAlreadyInstalled -eq $totalTools) {
+            Write-Host " ℹ️  All tools were already installed" -ForegroundColor Cyan
+        }
+        Write-Host ""
+
+        # Show newly installed tools
+        if ($successfulTools.Count -gt 0) {
+            Write-Host " ✓ Successfully installed ($($successfulTools.Count)):" -ForegroundColor Green
+            foreach ($tool in $successfulTools) {
+                Write-Host "   • $tool" -ForegroundColor Green
+            }
+            Write-Host ""
+        }
+
+        # Show already installed tools
+        if ($alreadyInstalled.Count -gt 0) {
+            Write-Host " ℹ️  Already installed ($($alreadyInstalled.Count)):" -ForegroundColor Cyan
+            foreach ($tool in $alreadyInstalled) {
+                Write-Host "   • $tool" -ForegroundColor Gray
+            }
+            Write-Host ""
+        }
+
+        # Show failed installations with reasons
+        if ($failedTools.Count -gt 0) {
+            Write-Host " ✗ Failed to install ($($failedTools.Count)):" -ForegroundColor Red
+            foreach ($item in $failedTools) {
+                if ($item -is [hashtable]) {
+                    Write-Host "   • $($item.tool)" -ForegroundColor Red
+                    Write-Host "     → $($item.reason)" -ForegroundColor Yellow
+                } else {
+                    Write-Host "   • $item" -ForegroundColor Red
+                }
+            }
+            Write-Host ""
+        }
+
+        # Provide next steps if there were failures
+        if ($failedTools.Count -gt 0) {
+            Write-Host " 💡 Next steps:" -ForegroundColor Cyan
+            $hasTypoSuggestion = $false
+            $hasNpmIssue = $false
+            $hasScoopIssue = $false
+
+            foreach ($item in $failedTools) {
+                if ($item -is [hashtable]) {
+                    if ($item.reason -like "*Did you mean*") {
+                        $hasTypoSuggestion = $true
+                    }
+                    if ($item.reason -like "*npm*") {
+                        $hasNpmIssue = $true
+                    }
+                    if ($item.reason -like "*Not found in Scoop*") {
+                        $hasScoopIssue = $true
+                    }
+                }
+            }
+
+            if ($hasTypoSuggestion) {
+                Write-Host "   1. Check tool names and use suggested corrections above" -ForegroundColor Gray
+            }
+            if ($hasNpmIssue) {
+                Write-Host "   2. Ensure Node.js is installed: scoop install nodejs" -ForegroundColor Gray
+            }
+            if ($hasScoopIssue) {
+                Write-Host "   3. Search for correct package names: scoop search <tool>" -ForegroundColor Gray
+            }
+            Write-Host "   4. Check available buckets: scoop bucket list" -ForegroundColor Gray
+            Write-Host "   5. Some tools require specific buckets (extras, versions, etc.)" -ForegroundColor Gray
+            Write-Host ""
+        }
+
+        Write-Host ("═" * 70) -ForegroundColor DarkGray
+
+        # Exit with appropriate code
+        if ($failedTools.Count -gt 0) {
+            exit 1
+        } else {
+            exit 0
+        }
     }
     
     # ========================================================================
@@ -1571,7 +1892,21 @@ if ($ToolsUserRights) {
             }
         }
     }
-    
+
+    # ========================================================================
+    # POWERSHELL MODULES
+    # ========================================================================
+
+    Write-Section "📦 PowerShell Modules"
+
+    $psModulesConfig = $config.UserLevel.PowerShellModules
+    if ($psModulesConfig) {
+        Install-PowerShellModules -ModulesConfig $psModulesConfig -ModulesSourcePath $ModulesPath
+    }
+    else {
+        Write-Host "  ⊘ No PowerShell modules configured" -ForegroundColor Gray
+    }
+
     # ========================================================================
     # FONTS
     # ========================================================================

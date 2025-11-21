@@ -16,9 +16,9 @@ $ModulesPath = Split-Path -Parent $ScriptDir
 Write-Host "Loading modules from: $ModulesPath" -ForegroundColor Cyan
 
 try {
-    Import-Module (Join-Path $ModulesPath "path-manager\path-manager.ps1") -Force -ErrorAction Stop
-    Import-Module (Join-Path $ModulesPath "winget-manager\winget-manager.ps1") -Force -ErrorAction Stop
-    Import-Module (Join-Path $ModulesPath "scoop-manager\scoop-manager.ps1") -Force -ErrorAction Stop
+    Import-Module (Join-Path $ModulesPath "path-manager\path-manager.psm1") -Force -ErrorAction Stop
+    Import-Module (Join-Path $ModulesPath "winget-manager\winget-manager.psm1") -Force -ErrorAction Stop
+    Import-Module (Join-Path $ModulesPath "scoop-manager\scoop-manager.psm1") -Force -ErrorAction Stop
     Write-Host "✓ Modules loaded successfully" -ForegroundColor Green
 }
 catch {
