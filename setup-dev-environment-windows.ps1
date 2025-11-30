@@ -1026,21 +1026,46 @@ function Install-NVMForWindows {
     Write-Host "  → Installing NVM for Windows..." -ForegroundColor Cyan
 
     try {
-        # Download latest NVM for Windows installer
+        # Use noinstall (portable) version to avoid GUI dialogs
         $nvmVersion = "1.1.12"  # Latest stable version
-        $installerUrl = "https://github.com/coreybutler/nvm-windows/releases/download/$nvmVersion/nvm-setup.exe"
-        $installerPath = Join-Path $env:TEMP "nvm-setup.exe"
+        $zipUrl = "https://github.com/coreybutler/nvm-windows/releases/download/$nvmVersion/nvm-noinstall.zip"
+        $zipPath = Join-Path $env:TEMP "nvm-noinstall.zip"
+        $nvmHome = "$env:APPDATA\nvm"
+        $nvmSymlink = "$env:PROGRAMFILES\nodejs"
 
-        Write-Host "  → Downloading NVM $nvmVersion..." -ForegroundColor Gray
-        Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath -ErrorAction Stop
+        Write-Host "  → Downloading NVM $nvmVersion (portable)..." -ForegroundColor Gray
+        Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath -ErrorAction Stop
 
-        Write-Host "  → Running installer (this may take a moment)..." -ForegroundColor Gray
-        Start-Process -FilePath $installerPath -ArgumentList "/VERYSILENT" -Wait -NoNewWindow
+        Write-Host "  → Extracting NVM..." -ForegroundColor Gray
+        # Create NVM directory
+        if (-not (Test-Path $nvmHome)) {
+            New-Item -ItemType Directory -Path $nvmHome -Force | Out-Null
+        }
+        Expand-Archive -Path $zipPath -DestinationPath $nvmHome -Force
+
+        # Create settings.txt for NVM
+        $settingsContent = @"
+root: $nvmHome
+path: $nvmSymlink
+"@
+        Set-Content -Path "$nvmHome\settings.txt" -Value $settingsContent -Force
+
+        # Set environment variables (User level to avoid admin requirements)
+        [System.Environment]::SetEnvironmentVariable("NVM_HOME", $nvmHome, "User")
+        [System.Environment]::SetEnvironmentVariable("NVM_SYMLINK", $nvmSymlink, "User")
+
+        # Add to PATH
+        $userPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
+        if ($userPath -notlike "*$nvmHome*") {
+            [System.Environment]::SetEnvironmentVariable("Path", "$nvmHome;$nvmSymlink;$userPath", "User")
+        }
 
         # Cleanup
-        Remove-Item $installerPath -Force -ErrorAction SilentlyContinue
+        Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
 
         # Refresh environment
+        $env:NVM_HOME = $nvmHome
+        $env:NVM_SYMLINK = $nvmSymlink
         $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
 
         if (Test-CommandExists nvm) {
