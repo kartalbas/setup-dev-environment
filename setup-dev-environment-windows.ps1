@@ -874,15 +874,14 @@ function Install-PowerShellModules {
         return
     }
 
-    # Determine PowerShell modules directory
-    $psVersion = $PSVersionTable.PSVersion.Major
-    if ($psVersion -ge 6) {
-        # PowerShell Core/7+
-        $modulesDir = Join-Path $env:USERPROFILE "Documents\PowerShell\Modules"
-    } else {
-        # Windows PowerShell 5.1
-        $modulesDir = Join-Path $env:USERPROFILE "Documents\WindowsPowerShell\Modules"
-    }
+    # Determine PowerShell modules directory.
+    # Derive it from $PROFILE instead of building "$USERPROFILE\Documents\..."
+    # so it survives OneDrive-redirected and localized (e.g. German "Dokumente")
+    # Documents folders. $PROFILE.CurrentUserAllHosts points at the real
+    # ...\<PowerShell|WindowsPowerShell>\profile.ps1, whose parent is the user
+    # module root that is actually on $env:PSModulePath.
+    $userPsDir = Split-Path -Parent $PROFILE.CurrentUserAllHosts
+    $modulesDir = Join-Path $userPsDir "Modules"
 
     # Ensure modules directory exists
     if (-not (Test-Path $modulesDir)) {
@@ -1042,7 +1041,8 @@ if (Get-Module -ListAvailable -Name $mod) {
 function Install-CustomTools {
     param(
         [string]$ToolsSourcePath,
-        [string]$InstallPath
+        [string]$InstallPath,
+        [string]$ModulesSourcePath
     )
 
     # Check if tools source directory exists
@@ -1080,6 +1080,26 @@ function Install-CustomTools {
         catch {
             Write-Host "  ✗ Failed to deploy $($tool.Name): $_" -ForegroundColor Red
             $toolsFailed += $tool.Name
+        }
+    }
+
+    # Bundle the modules next to the tools inside the install path.
+    # Deployed tools (e.g. winget-manager.ps1) resolve their module relative to
+    # their own location: <install>\modules\windows\<name>\<name>.psm1. Copying
+    # the module tree here makes that primary lookup succeed independently of the
+    # PowerShell edition or where the user's Documents\...\Modules folder lives
+    # (OneDrive redirection, localized folder names, etc.).
+    if ($ModulesSourcePath -and (Test-Path $ModulesSourcePath)) {
+        $modulesDestPath = Join-Path $InstallPath "modules\windows"
+        try {
+            if (-not (Test-Path $modulesDestPath)) {
+                New-Item -Path $modulesDestPath -ItemType Directory -Force | Out-Null
+            }
+            Copy-Item -Path (Join-Path $ModulesSourcePath "*") -Destination $modulesDestPath -Recurse -Force
+            Write-Host "  ✓ Modules bundled to: $modulesDestPath" -ForegroundColor Green
+        }
+        catch {
+            Write-Host "  ⚠️  Failed to bundle modules to install path: $_" -ForegroundColor Yellow
         }
     }
 
@@ -1381,7 +1401,7 @@ if ($ToolsUserRights) {
     Write-Section "Custom Tools Deployment"
 
     $toolsSourcePath = Join-Path $scriptDir "tools"
-    Install-CustomTools -ToolsSourcePath $toolsSourcePath -InstallPath $installPath
+    Install-CustomTools -ToolsSourcePath $toolsSourcePath -InstallPath $installPath -ModulesSourcePath $ModulesPath
 
     # ========================================================================
     # FORCE INSTALL MODE - Skip all sections and install only specified tools

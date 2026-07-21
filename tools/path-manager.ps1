@@ -15,14 +15,39 @@
 # IMPORT MODULE
 # ============================================================================
 
-$modulePath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSCommandPath)) "modules\windows\path-manager\path-manager.psm1"
+$moduleName = "path-manager"
+$scriptDir  = Split-Path -Parent $PSCommandPath
 
-if (Test-Path $modulePath) {
-    Import-Module $modulePath -Force -ErrorAction Stop
-} elseif (Get-Module -ListAvailable -Name "path-manager") {
-    Import-Module "path-manager" -Force -ErrorAction Stop
-} else {
-    Write-Host "Error: path-manager module not found at: $modulePath" -ForegroundColor Red
+# Probe several concrete locations so the tool works whether it is run from the
+# repo, from its deployed install path (<install>\tools next to <install>\modules),
+# or against a module installed into the user's PowerShell module directory. The
+# latter is derived from $PROFILE so it survives OneDrive-redirected and localized
+# (e.g. German "Dokumente") Documents folders.
+$moduleCandidates = @(
+    (Join-Path (Split-Path -Parent $scriptDir) "modules\windows\$moduleName\$moduleName.psm1")
+    (Join-Path $scriptDir "..\modules\windows\$moduleName\$moduleName.psm1")
+    (Join-Path (Split-Path -Parent $PROFILE.CurrentUserAllHosts) "Modules\$moduleName\$moduleName.psm1")
+)
+
+$imported = $false
+foreach ($candidate in $moduleCandidates) {
+    if ($candidate -and (Test-Path $candidate)) {
+        Import-Module $candidate -Force -ErrorAction Stop
+        $imported = $true
+        break
+    }
+}
+
+if (-not $imported -and (Get-Module -ListAvailable -Name $moduleName)) {
+    Import-Module $moduleName -Force -ErrorAction Stop
+    $imported = $true
+}
+
+if (-not $imported) {
+    Write-Host "Error: $moduleName module not found." -ForegroundColor Red
+    Write-Host "Looked in:" -ForegroundColor Yellow
+    foreach ($candidate in $moduleCandidates) { Write-Host "  - $candidate" -ForegroundColor Yellow }
+    Write-Host "  - `$env:PSModulePath (Get-Module -ListAvailable -Name $moduleName)" -ForegroundColor Yellow
     Write-Host "Please ensure the module is installed." -ForegroundColor Yellow
     exit 1
 }
